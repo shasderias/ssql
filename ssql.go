@@ -46,20 +46,13 @@ func Open(driverName, dataSourceName, sqlPath string) (DB, error) {
 		return nil, err
 	}
 
-	stmts := map[string]map[string]goyesql.Queries{}
+	stmts := map[string]goyesql.Queries{}
 
 	for _, path := range matches {
-		dirpath, filename := filepath.Split(path)
-		dirs := strings.Split(dirpath, "/")
-		packageName := dirs[1]
+		filename := filepath.Base(path)
+		filenameWithoutExt := strings.Split(filename, ".")[0]
 
-		filenameParts := strings.Split(filename, ".")
-		baseFilename := filenameParts[0]
-
-		if stmts[packageName] == nil {
-			stmts[packageName] = map[string]goyesql.Queries{}
-		}
-		stmts[packageName][baseFilename] = goyesql.MustParseFile(path)
+		stmts[filenameWithoutExt] = goyesql.MustParseFile(path)
 	}
 
 	db, err := sqlx.Open(driverName, dataSourceName)
@@ -72,7 +65,7 @@ func Open(driverName, dataSourceName, sqlPath string) (DB, error) {
 
 type SqlxDB struct {
 	db    *sqlx.DB
-	stmts map[string]map[string]goyesql.Queries
+	stmts map[string]goyesql.Queries
 }
 
 func (db SqlxDB) Query(name string, args ...interface{}) (*sql.Rows, error) {
@@ -116,7 +109,7 @@ func (db SqlxDB) Beginx() (Tx, error) {
 
 func (db SqlxDB) lookupSqlStmt(name string) string {
 	parts := strings.Split(name, ".")
-	return db.stmts[parts[0]][parts[1]][goyesql.Tag(parts[2])]
+	return db.stmts[parts[0]][goyesql.Tag(parts[1])]
 }
 
 type SqlxTx struct {
