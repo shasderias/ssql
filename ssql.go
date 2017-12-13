@@ -18,6 +18,7 @@ type DB interface {
 	Exec(name string, args ...interface{}) (sql.Result, error)
 	NamedExec(name string, arg interface{}) (sql.Result, error)
 	Beginx() (Tx, error)
+	DB() *sqlx.DB
 }
 
 type Tx interface {
@@ -105,6 +106,10 @@ func (db SqlxDB) Beginx() (Tx, error) {
 	}
 
 	return &SqlxTx{db, tx}, nil
+}
+
+func (db SqlxDB) DB() *sqlx.DB {
+	return db.db
 }
 
 func (db SqlxDB) lookupSqlStmt(name string) string {
