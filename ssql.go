@@ -14,7 +14,7 @@ import (
 type ErrStmtNotFound string
 
 func (err ErrStmtNotFound) Error() string {
-	return fmt.Sprintf("statement '%s' not found", err)
+	return fmt.Sprintf("statement '%s' not found", string(err))
 }
 
 type DB interface {
