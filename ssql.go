@@ -2,6 +2,7 @@ package ssql
 
 import (
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"strings"
 
@@ -9,6 +10,8 @@ import (
 	zglob "github.com/mattn/go-zglob"
 	"github.com/nleof/goyesql"
 )
+
+var ErrStmtNotFound = errors.New("statement not found")
 
 type DB interface {
 	Query(name string, args ...interface{}) (*sql.Rows, error)
@@ -70,32 +73,50 @@ type SqlxDB struct {
 }
 
 func (db SqlxDB) Query(name string, args ...interface{}) (*sql.Rows, error) {
-	query := db.lookupSqlStmt(name)
+	query, err := db.lookupSqlStmt(name)
+	if err != nil {
+		return nil, err
+	}
 	return db.db.Query(query, args...)
 }
 
 func (db SqlxDB) QueryRow(name string, args ...interface{}) *sql.Row {
-	query := db.lookupSqlStmt(name)
+	query, err := db.lookupSqlStmt(name)
+	if err != nil {
+		return nil
+	}
 	return db.db.QueryRow(query, args...)
 }
 
 func (db SqlxDB) Get(dest interface{}, name string, args ...interface{}) error {
-	query := db.lookupSqlStmt(name)
+	query, err := db.lookupSqlStmt(name)
+	if err != nil {
+		return err
+	}
 	return db.db.Get(dest, query, args...)
 }
 
 func (db SqlxDB) Select(dest interface{}, name string, args ...interface{}) error {
-	query := db.lookupSqlStmt(name)
+	query, err := db.lookupSqlStmt(name)
+	if err != nil {
+		return err
+	}
 	return db.db.Select(dest, query, args...)
 }
 
 func (db SqlxDB) Exec(name string, args ...interface{}) (sql.Result, error) {
-	query := db.lookupSqlStmt(name)
+	query, err := db.lookupSqlStmt(name)
+	if err != nil {
+		return nil, err
+	}
 	return db.db.Exec(query, args...)
 }
 
 func (db SqlxDB) NamedExec(name string, arg interface{}) (sql.Result, error) {
-	query := db.lookupSqlStmt(name)
+	query, err := db.lookupSqlStmt(name)
+	if err != nil {
+		return nil, err
+	}
 	return db.db.NamedExec(query, arg)
 }
 
@@ -112,9 +133,13 @@ func (db SqlxDB) DB() *sqlx.DB {
 	return db.db
 }
 
-func (db SqlxDB) lookupSqlStmt(name string) string {
+func (db SqlxDB) lookupSqlStmt(name string) (string, error) {
 	parts := strings.Split(name, ".")
-	return db.stmts[parts[0]][goyesql.Tag(parts[1])]
+	stmt := db.stmts[parts[0]][goyesql.Tag(parts[1])]
+	if stmt == "" {
+		return "", ErrStmtNotFound
+	}
+	return stmt, nil
 }
 
 type SqlxTx struct {
@@ -123,34 +148,53 @@ type SqlxTx struct {
 }
 
 func (tx SqlxTx) Query(name string, args ...interface{}) (*sql.Rows, error) {
-	query := tx.db.lookupSqlStmt(name)
+	query, err := tx.db.lookupSqlStmt(name)
+	if err != nil {
+		return nil, err
+	}
 	return tx.tx.Query(query, args...)
 }
 
 func (tx SqlxTx) QueryRow(name string, args ...interface{}) *sql.Row {
-	query := tx.db.lookupSqlStmt(name)
+	query, err := tx.db.lookupSqlStmt(name)
+	if err != nil {
+		return nil
+	}
 	return tx.tx.QueryRow(query, args...)
 }
 
 func (tx SqlxTx) Get(dest interface{}, name string, args ...interface{}) error {
-	query := tx.db.lookupSqlStmt(name)
+	query, err := tx.db.lookupSqlStmt(name)
+	if err != nil {
+		return err
+	}
 	return tx.tx.Get(dest, query, args...)
 }
 
 func (tx SqlxTx) Select(dest interface{}, name string, args ...interface{}) error {
-	query := tx.db.lookupSqlStmt(name)
+	query, err := tx.db.lookupSqlStmt(name)
+	if err != nil {
+		return err
+	}
 	return tx.tx.Select(dest, query, args...)
 }
 
 func (tx SqlxTx) Exec(name string, args ...interface{}) (sql.Result, error) {
-	query := tx.db.lookupSqlStmt(name)
+	query, err := tx.db.lookupSqlStmt(name)
+	if err != nil {
+		return nil, err
+	}
 	return tx.tx.Exec(query, args...)
 }
 
 func (tx SqlxTx) NamedExec(name string, arg interface{}) (sql.Result, error) {
-	query := tx.db.lookupSqlStmt(name)
+	query, err := tx.db.lookupSqlStmt(name)
+	if err != nil {
+		return nil, err
+	}
 	return tx.tx.NamedExec(query, arg)
 }
+
 func (tx SqlxTx) Commit() error {
 	return tx.tx.Commit()
 }
