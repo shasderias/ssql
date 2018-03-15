@@ -2,7 +2,7 @@ package ssql
 
 import (
 	"database/sql"
-	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -11,7 +11,11 @@ import (
 	"github.com/nleof/goyesql"
 )
 
-var ErrStmtNotFound = errors.New("statement not found")
+type ErrStmtNotFound string
+
+func (err ErrStmtNotFound) Error() string {
+	return fmt.Sprintf("statement '%s' not found", err)
+}
 
 type DB interface {
 	Query(name string, args ...interface{}) (*sql.Rows, error)
@@ -137,7 +141,7 @@ func (db SqlxDB) lookupSqlStmt(name string) (string, error) {
 	parts := strings.Split(name, ".")
 	stmt := db.stmts[parts[0]][goyesql.Tag(parts[1])]
 	if stmt == "" {
-		return "", ErrStmtNotFound
+		return "", ErrStmtNotFound(name)
 	}
 	return stmt, nil
 }
